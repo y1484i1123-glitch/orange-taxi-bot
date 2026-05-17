@@ -1,0 +1,14 @@
+{
+  "name": "orange-taxi-dispatch",
+  "version": "1.0.0",
+  "description": "オレンジタクシー 配車サーバー",
+  "main": "dispatch_server.js",
+  "scripts": {
+    "start": "node dispatch_server.js"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^9.3.0",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  }
+}
