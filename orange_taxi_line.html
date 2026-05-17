@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>オレンジタクシー 配車</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #fff8f0;
+      color: #333;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    /* ========== ヘッダー ========== */
+    header {
+      background: linear-gradient(135deg, #FF8C00, #FFA500);
+      color: white;
+      text-align: center;
+      padding: 16px 16px 12px;
+      box-shadow: 0 2px 8px rgba(255,140,0,0.4);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 21px; font-weight: 700; letter-spacing: 0.05em; }
+    header p  { font-size: 12px; margin-top: 3px; opacity: 0.9; }
+
+    .header-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .header-btn {
+      background: white;
+      color: #FF8C00;
+      border: none;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ========== QRパネル ========== */
+    #qr-panel {
+      display: none;
+      background: #fff;
+      text-align: center;
+      padding: 20px 16px;
+      border-bottom: 2px solid #FFD280;
+    }
+    #qr-panel p { font-size: 13px; color: #888; margin-bottom: 12px; }
+    #qr-image  { width: 200px; height: 200px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    #qr-url-text { font-size: 11px; color: #bbb; margin-top: 10px; word-break: break-all; }
+
+    /* ========== タブ ========== */
+    .tab-bar {
+      display: flex;
+      background: #fff;
+      border-bottom: 3px solid #FF8C00;
+      position: sticky;
+      top: 96px;
+      z-index: 99;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 2px;
+      background: none;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: #999;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+    .tab-btn.active {
+      color: #FF8C00;
+      background: #fff8f0;
+      border-bottom: 3px solid #FF8C00;
+      margin-bottom: -3px;
+    }
+
+    .tab-content { display: none; padding: 18px 14px; }
+    .tab-content.active { display: block; }
+
+    /* ========== セクションタイトル ========== */
+    .section-title {
+      font-size: 14px;
+      color: #888;
+      font-weight: 600;
+      border-left: 4px solid #FF8C00;
+      padding-left: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* ========== ボタン共通 ========== */
+    .btn {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 64px;
+      margin-bottom: 12px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      padding: 12px 18px;
+      text-align: left;
+      -webkit-appearance: none;
+    }
+    .btn:active { transform: scale(0.97); filter: brightness(0.92); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+
+    .btn-primary { background: linear-gradient(135deg, #FF8C00, #FFA500); color: white; }
+    .btn-phone   { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: white; }
+    .btn-facility {
+      background: white; color: #333;
+      border: 2px solid #FFD280; font-size: 15px;
+    }
+    .btn-facility:active { background: #fff8f0; }
+
+    .btn-icon  { font-size: 26px; margin-right: 14px; flex-shrink: 0; min-width: 34px; text-align: center; }
+    .btn-text  { flex: 1; }
+    .btn-text .name { display: block; font-weight: 700; }
+    .btn-text .sub  { display: block; font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 3px; }
+    .btn-facility .btn-text .name { font-size: 15px; color: #333; }
+    .btn-text .location { display: block; font-size: 12px; color: #FF8C00; margin-top: 3px; font-weight: 600; }
+    .btn-arrow { color: #ccc; font-size: 18px; margin-left: 8px; flex-shrink: 0; }
+    .btn-facility .btn-arrow { color: #FF8C00; }
+
+    .divider { height: 1px; background: #f0e0cc; margin: 16px 0; }
+
+    /* ========== 登録カード（タブ4） ========== */
+    .profile-card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    .profile-card h3 { font-size: 16px; color: #FF8C00; margin-bottom: 16px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="tel"] {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border: 2px solid #FFD280;
+      border-radius: 10px;
+      outline: none;
+      background: #fffaf5;
+      color: #333;
+    }
+    .form-group input:focus { border-color: #FF8C00; background: #fff; }
+
+    .gender-group { display: flex; gap: 10px; }
+    .gender-btn {
+      flex: 1;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      border: 2px solid #FFD280;
+      border-radius: 10px;
+      background: #fffaf5;
+      color: #999;
+      cursor: pointer;
+      text-align: center;
+    }
+    .gender-btn.selected { border-color: #FF8C00; background: #FF8C00; color: white; }
+
+    .save-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #FF8C00, #FFA500);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(255,140,0,0.4);
+      margin-top: 8px;
+    }
+    .save-btn:active { filter: brightness(0.9); }
+
+    /* ========== 登録モーダル（初回） ========== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-box {
+      background: white;
+      border-radius: 20px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .modal-box h2 {
+      font-size: 18px;
+      color: #FF8C00;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .modal-box .modal-sub {
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* ========== 設定モーダル ========== */
+    #settings-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #settings-modal.open { display: flex; }
+    #settings-modal .modal-box h2 { font-size: 18px; color: #FF8C00; text-align: center; margin-bottom: 20px; }
+    .close-btn {
+      width: 100%;
+      padding: 14px;
+      background: #eee;
+      color: #666;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    /* ========== 新飯塚駅エリア ========== */
+    .station-card {
+      background: linear-gradient(135deg, #1a3a6b, #2255a4);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 8px;
+      box-shadow: 0 4px 16px rgba(26,58,107,0.35);
+      color: white;
+    }
+    .station-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.03em;
+    }
+    .station-card .station-sub {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 16px;
+    }
+    .station-time-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .station-time-label {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .station-time-input {
+      flex: 1;
+      padding: 12px 14px;
+      font-size: 20px;
+      font-weight: 700;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      outline: none;
+      text-align: center;
+    }
+    .station-time-input::-webkit-calendar-picker-indicator { filter: invert(1); }
+    .station-send-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #FF8C00, #FFA500);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(255,140,0,0.4);
+    }
+    .station-send-btn:active { filter: brightness(0.9); }
+    .station-note {
+      font-size: 11px;
+      opacity: 0.7;
+      text-align: center;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* ========== フッター ========== */
+    footer { text-align: center; color: #bbb; font-size: 11px; margin-top: 24px; }
+
+    /* ========== トースト ========== */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(50,50,50,0.92);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ========== 初回登録モーダル ========== -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <h2>🚖 はじめにご登録ください</h2>
+      <p class="modal-sub">一度登録すると次回から自動で使えます</p>
+
+      <div class="form-group">
+        <label>お名前</label>
+        <input type="text" id="m-name" placeholder="例：山田 花子" inputmode="text">
+      </div>
+      <div class="form-group">
+        <label>性別</label>
+        <div class="gender-group">
+          <button class="gender-btn" id="m-male"   onclick="selectGender('男性')">男性</button>
+          <button class="gender-btn" id="m-female" onclick="selectGender('女性')">女性</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>電話番号</label>
+        <input type="tel" id="m-phone" placeholder="例：090-1234-5678" inputmode="tel">
+      </div>
+      <div class="form-group">
+        <label>自宅住所</label>
+        <input type="text" id="m-address" placeholder="例：飯塚市芳雄町1-1" inputmode="text">
+      </div>
+
+      <button class="save-btn" onclick="saveModal()">登録して始める</button>
+    </div>
+  </div>
+
+  <!-- ========== ヘッダー ========== -->
+  <header>
+    <h1>🚖 オレンジタクシー</h1>
+    <p>行き先をタップするとLINEで配車依頼できます</p>
+    <div class="header-btns">
+      <button class="header-btn" onclick="toggleQR()">📷 QRコード</button>
+      <button class="header-btn" onclick="openSettings()">⚙️ 登録情報</button>
+    </div>
+  </header>
+
+  <!-- ========== QRパネル ========== -->
+  <div id="qr-panel">
+    <p>スマホでこのQRコードを読み込んでください</p>
+    <img id="qr-image" src="" alt="QRコード">
+    <p id="qr-url-text"></p>
+  </div>
+
+  <!-- ========== タブバー ========== -->
+  <!-- ========== 設定モーダル ========== -->
+  <div id="settings-modal">
+    <div class="modal-box">
+      <h2>⚙️ 登録情報の変更</h2>
+      <div class="form-group">
+        <label>お名前</label>
+        <input type="text" id="p-name" placeholder="例：山田 花子" inputmode="text">
+      </div>
+      <div class="form-group">
+        <label>性別</label>
+        <div class="gender-group">
+          <button class="gender-btn" id="p-male"   onclick="selectGenderP('男性')">男性</button>
+          <button class="gender-btn" id="p-female" onclick="selectGenderP('女性')">女性</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>電話番号</label>
+        <input type="tel" id="p-phone" placeholder="例：090-1234-5678" inputmode="tel">
+      </div>
+      <div class="form-group">
+        <label>自宅住所</label>
+        <input type="text" id="p-address" placeholder="例：飯塚市芳雄町1-1" inputmode="text">
+      </div>
+      <button class="save-btn" onclick="saveProfile()">変更を保存する</button>
+      <button class="close-btn" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('home', this)">🏠 自宅・現在地</button>
+    <button class="tab-btn" onclick="switchTab('hospital', this)">🏥 病院</button>
+    <button class="tab-btn" onclick="switchTab('shopping', this)">🛒 買い物</button>
+  </nav>
+
+  <!-- ========== タブ1：自宅・現在地 ========== -->
+  <div id="tab-home" class="tab-content active">
+    <p class="section-title">乗り場を選んでください</p>
+
+    <button class="btn btn-primary" onclick="sendHome()">
+      <span class="btn-icon">🏠</span>
+      <span class="btn-text">
+        <span class="name">自宅から乗る</span>
+        <span class="sub" id="home-sub">住所を登録してください</span>
+      </span>
+      <span class="btn-arrow">›</span>
+    </button>
+
+    <button class="btn btn-primary" onclick="sendCurrent()">
+      <span class="btn-icon">📍</span>
+      <span class="btn-text">
+        <span class="name">今いる場所から乗る</span>
+      </span>
+      <span class="btn-arrow">›</span>
+    </button>
+
+    <div class="divider"></div>
+    <p class="section-title">電話で依頼する</p>
+
+    <a class="btn btn-phone" href="tel:0948-22-0023">
+      <span class="btn-icon">📞</span>
+      <span class="btn-text">
+        <span class="name">電話する　0948-22-0023</span>
+      </span>
+      <span class="btn-arrow">›</span>
+    </a>
+
+    <div class="divider"></div>
+    <p class="section-title" id="station-section">🚃 新飯塚駅からのご利用</p>
+
+    <div class="station-card">
+      <h3>🚉 新飯塚駅 お迎えサービス</h3>
+      <p class="station-sub">到着時間を入力してLINEで呼べます</p>
+
+      <div class="station-time-row">
+        <span class="station-time-label">到着時刻</span>
+        <input type="time" id="station-time" class="station-time-input">
+      </div>
+
+      <button class="station-send-btn" onclick="sendStation()">
+        🚖 この時間にタクシーを呼ぶ
+      </button>
+      <p class="station-note">※ 駅の改札を出たところでお待ちください<br>※ 到着の15〜20分前にご連絡ください</p>
+    </div>
+  </div>
+
+  <!-- ========== タブ2：病院 ========== -->
+  <div id="tab-hospital" class="tab-content">
+    <p class="section-title">行き先の病院を選んでください</p>
+    <div id="hospital-buttons"></div>
+  </div>
+
+  <!-- ========== タブ3：買い物 ========== -->
+  <div id="tab-shopping" class="tab-content">
+    <p class="section-title">行き先を選んでください</p>
+    <div id="shopping-buttons"></div>
+  </div>
+
+
+  <footer><p>© オレンジタクシー　LINE ID: @451ndhye</p></footer>
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // Firebase初期化
+    const firebaseConfig = {
+      apiKey:            "AIzaSyBA9vcnjdtPiMGL4AVVlqCR_jF5PJCN2dw",
+      authDomain:        "orange-taxi-iizuka.firebaseapp.com",
+      databaseURL:       "https://orange-taxi-iizuka-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId:         "orange-taxi-iizuka",
+      storageBucket:     "orange-taxi-iizuka.firebasestorage.app",
+      messagingSenderId: "347718380376",
+      appId:             "1:347718380376:web:d5637c0498b0fcd6d0132d"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function writeRequest(message, pickup, customerName, customerPhone) {
+      const timeStr = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      return db.ref('requests').push({
+        message,
+        pickup:        pickup || message.split('\n')[0],
+        customerName:  customerName  || '（名前未登録）',
+        customerPhone: customerPhone || '',
+        timestamp:     Date.now(),
+        time:          timeStr,
+        assigned:      false,
+      });
+    }
+  </script>
+
+  <script>
+    // =============================================
+    // データ設定 — 施設の追加・変更はここだけ！
+    // =============================================
+    const LINE_ID = '@451ndhye';
+
+    const hospitals = [
+      { name: '飯塚病院',                    location: '芳雄町', icon: '🏥', address: '飯塚市芳雄町3-83',      tel: '0948-22-3800' },
+      { name: '飯塚市立病院',                location: '弁分',   icon: '🏥', address: '飯塚市弁分633-1',       tel: '0948-22-2980' },
+      { name: '共立病院',                    location: '横田',   icon: '🏥', address: '飯塚市横田770-3',       tel: '0948-22-0725' },
+      { name: '児嶋病院',                    location: '花瀬',   icon: '🏥', address: '飯塚市花瀬87-1',        tel: '0948-22-1498' },
+      { name: '岡眼科',                      location: '川津',   icon: '👁', address: '飯塚市川津364-2',       tel: '0948-22-5155' },
+      { name: '泌尿器科C.U.クリニック',      location: '川津',   icon: '🏥', address: '飯塚市川津405-1',       tel: '0948-23-1249' },
+      { name: '樋口医院',                    location: '横田',   icon: '🏥', address: '飯塚市横田838',          tel: '0948-22-1274' },
+      { name: 'ナワタ消化器外科医院',        location: '横田',   icon: '🏥', address: '飯塚市横田334',          tel: '0948-24-2303' },
+      { name: '林田胃腸科医院',              location: '片島',   icon: '🏥', address: '飯塚市片島2-5-4',       tel: '0948-22-8656' },
+      { name: 'そばしま内科循環器科',        location: '新飯塚', icon: '🏥', address: '飯塚市新飯塚21-21',     tel: '0948-26-9900' },
+      { name: '大庭クリニック',              location: '伊岐須', icon: '🏥', address: '飯塚市伊岐須298-10',    tel: '0948-25-5678' },
+      { name: '石橋外科内科医院',            location: '伊岐須', icon: '🏥', address: '飯塚市伊岐須847-5',     tel: '0948-23-0400' },
+    ];
+
+    const shops = [
+      { name: 'ゆめタウン飯塚',                   location: '菰田西', icon: '🏬', address: '飯塚市菰田西3丁目6-1',      tel: '0948-30-1200' },
+      { name: 'イオン穂波ショッピングセンター',   location: '枝国',   icon: '🏬', address: '飯塚市枝国長浦666-48',      tel: '0948-26-1717' },
+      { name: 'ハローデイ九工大前店',             location: '潤野',   icon: '🛒', address: '飯塚市川津680-5',           tel: '0948-26-5550' },
+      { name: 'ゆめマート飯塚店',                 location: '吉原町', icon: '🛒', address: '飯塚市吉原町6-1',           tel: '0948-22-3770' },
+      { name: 'ゆめマート花瀬店',                 location: '花瀬',   icon: '🛒', address: '飯塚市花瀬168-2',           tel: '0948-26-0018' },
+      { name: 'フードウェイ新飯塚店',             location: '立岩',   icon: '🛒', address: '飯塚市立岩964-32',          tel: '0948-21-7077' },
+      { name: 'アルゾ飯塚幸袋店',                 location: '幸袋',   icon: '🛒', address: '飯塚市中227-1',             tel: '0948-55-0980' },
+      { name: 'スーパーセンタートライアル飯塚店', location: '徳前',   icon: '🛒', address: '飯塚市徳前40-1',            tel: '0948-26-2229' },
+      { name: 'コスモス花瀬店',                   location: '横田',   icon: '💊', address: '飯塚市横田599',             tel: '0948-30-3160' },
+      { name: 'コスモス薬品伊岐須店',             location: '伊岐須', icon: '💊', address: '飯塚市伊岐須130-2',         tel: '0948-26-2577' },
+      { name: 'サンドラッグ九工大前店',           location: '川津',   icon: '💊', address: '飯塚市川津680-5',           tel: '0948-26-0250' },
+      { name: 'くすりのハッピー川津店',           location: '川津',   icon: '💊', address: '飯塚市川津266-2',           tel: '0948-28-5562' },
+    ];
+
+    // =============================================
+    // プロフィール管理
+    // =============================================
+    let profile = { name: '', gender: '', phone: '', address: '' };
+    let modalGender = '';
+    let profileGender = '';
+
+    function loadProfile() {
+      const saved = localStorage.getItem('otProfile');
+      if (saved) {
+        profile = JSON.parse(saved);
+        return true;
+      }
+      return false;
+    }
+
+    function saveData(src) {
+      if (src === 'modal') {
+        profile.name    = document.getElementById('m-name').value.trim();
+        profile.gender  = modalGender;
+        profile.phone   = document.getElementById('m-phone').value.trim();
+        profile.address = document.getElementById('m-address').value.trim();
+      } else {
+        profile.name    = document.getElementById('p-name').value.trim();
+        profile.gender  = profileGender;
+        profile.phone   = document.getElementById('p-phone').value.trim();
+        profile.address = document.getElementById('p-address').value.trim();
+      }
+      localStorage.setItem('otProfile', JSON.stringify(profile));
+      updateHomeSub();
+    }
+
+    function updateHomeSub() {
+      const el = document.getElementById('home-sub');
+      el.textContent = profile.address ? profile.address : '住所を登録してください';
+    }
+
+    function fillProfileForm() {
+      document.getElementById('p-name').value    = profile.name;
+      document.getElementById('p-phone').value   = profile.phone;
+      document.getElementById('p-address').value = profile.address;
+      profileGender = profile.gender;
+      document.getElementById('p-male').classList.toggle('selected',  profile.gender === '男性');
+      document.getElementById('p-female').classList.toggle('selected', profile.gender === '女性');
+    }
+
+    // ========== モーダル ==========
+    function selectGender(g) {
+      modalGender = g;
+      document.getElementById('m-male').classList.toggle('selected',  g === '男性');
+      document.getElementById('m-female').classList.toggle('selected', g === '女性');
+    }
+
+    function saveModal() {
+      saveData('modal');
+      document.getElementById('modal').style.display = 'none';
+      showToast('登録しました！');
+    }
+
+    // ========== 設定モーダル ==========
+    function openSettings() {
+      fillProfileForm();
+      document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettings() {
+      document.getElementById('settings-modal').classList.remove('open');
+    }
+
+    function selectGenderP(g) {
+      profileGender = g;
+      document.getElementById('p-male').classList.toggle('selected',  g === '男性');
+      document.getElementById('p-female').classList.toggle('selected', g === '女性');
+    }
+
+    function saveProfile() {
+      saveData('profile');
+      closeSettings();
+      showToast('保存しました！');
+    }
+
+    // =============================================
+    // LINEメッセージ送信
+    // =============================================
+    function buildHeader() {
+      if (!profile.name) return '';
+      const g = profile.gender ? `（${profile.gender}）` : '';
+      const t = profile.phone  ? `　TEL：${profile.phone}` : '';
+      return `【${profile.name}${g}${t}】\n`;
+    }
+
+    function sendHome() {
+      const h = buildHeader();
+      const addr = profile.address || '（住所未登録）';
+      const mapUrl = addr !== '（住所未登録）'
+        ? `\n📍ナビ：https://maps.google.com/maps?q=${encodeURIComponent(addr)}`
+        : '';
+      sendLine(`${h}自宅（${addr}）から乗りたいです。迎えに来てください。${mapUrl}`, `自宅（${addr}）`);
+    }
+
+    function sendCurrent() {
+      showToast('現在地を取得しています…');
+      if (!navigator.geolocation) {
+        const h = buildHeader();
+        sendLine(`${h}今いる場所から乗りたいです。場所を伝えますので来てください。`);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}`;
+          const h = buildHeader();
+          sendLine(`${h}今いる場所から乗りたいです。\n現在地：${mapUrl}`, `現在地（GPS）${mapUrl}`);
+        },
+        err => {
+          const h = buildHeader();
+          sendLine(`${h}今いる場所から乗りたいです。場所を伝えますので来てください。`, '現在地（GPS取得失敗）');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    function sendFacility(item) {
+      const userAddr = profile.address || '';
+      const userTel  = profile.phone   || '';
+      const userName = profile.name    || '';
+      const userG    = profile.gender  ? `（${profile.gender}）` : '';
+      const mapUrl   = `https://maps.google.com/maps?q=${encodeURIComponent(item.address + ' ' + item.name)}`;
+      let msg = `${item.name}\n${item.address}\nTEL${item.tel}\nに迎えに来てください。\n📍ナビ：${mapUrl}`;
+      if (userName || userAddr || userTel) {
+        msg += `\n\n${userName}${userG}`;
+        if (userAddr) msg += `\n${userAddr}`;
+        if (userTel)  msg += `\n${userTel}`;
+      }
+      sendLine(msg, `${item.name}（${item.address}）`);
+    }
+
+    function sendStation() {
+      const timeVal = document.getElementById('station-time').value;
+      if (!timeVal) {
+        showToast('到着時刻を入力してください');
+        return;
+      }
+      const [hh, mm] = timeVal.split(':');
+      const timeStr = `${parseInt(hh)}時${mm}分`;
+      const h = buildHeader();
+      sendLine(`${h}新飯塚駅に${timeStr}に到着します。\n改札出口でお待ちしますので、迎えに来てください。\n📍新飯塚駅：https://maps.google.com/maps?q=新飯塚駅`, `新飯塚駅 ${timeStr}着`);
+    }
+
+    function sendLine(message, pickup) {
+      showToast('LINEを開いています…');
+      const encoded = encodeURIComponent(message);
+      const lineUrl = `https://line.me/R/oaMessage/@451ndhye/?text=${encoded}`;
+
+      try {
+        writeRequest(
+          message,
+          pickup || '',
+          profile.name  || '',
+          profile.phone || ''
+        ).then(() => {
+          window.location.href = lineUrl;
+        }).catch(() => {
+          window.location.href = lineUrl;
+        });
+      } catch(e) {
+        // Firebaseエラーでも必ずLINEを開く
+        window.location.href = lineUrl;
+      }
+    }
+
+    // =============================================
+    // ボタン生成
+    // =============================================
+    function buildButtons(items, containerId) {
+      const container = document.getElementById(containerId);
+      items.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-facility';
+        btn.onclick = () => sendFacility(item);
+        btn.innerHTML = `
+          <span class="btn-icon">${item.icon}</span>
+          <span class="btn-text">
+            <span class="name">${item.name}</span>
+            <span class="location">📍 ${item.location}</span>
+          </span>
+          <span class="btn-arrow">›</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    buildButtons(hospitals, 'hospital-buttons');
+    buildButtons(shops,     'shopping-buttons');
+
+    // =============================================
+    // タブ切り替え
+    // =============================================
+    function switchTab(tabName, clickedBtn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      if (clickedBtn) clickedBtn.classList.add('active');
+      if (tabName === 'profile') fillProfileForm();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // =============================================
+    // QRコード
+    // =============================================
+    function toggleQR() {
+      const panel = document.getElementById('qr-panel');
+      if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+      } else {
+        const url = window.location.href.split('?')[0];
+        document.getElementById('qr-image').src =
+          'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+        document.getElementById('qr-url-text').textContent = url;
+        panel.style.display = 'block';
+      }
+    }
+
+    // =============================================
+    // トースト
+    // =============================================
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // =============================================
+    // 起動処理
+    // =============================================
+    if (loadProfile()) {
+      document.getElementById('modal').style.display = 'none';
+      updateHomeSub();
+    }
+
+    // URLパラメータでタブ・アクションを制御
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    const actionParam = params.get('action');
+
+    if (tabParam === 'hospital') {
+      switchTab('hospital', document.querySelectorAll('.tab-btn')[1]);
+    } else if (tabParam === 'shopping') {
+      switchTab('shopping', document.querySelectorAll('.tab-btn')[2]);
+    } else if (tabParam === 'station') {
+      // 新飯塚駅セクションまでスクロール
+      setTimeout(() => {
+        const el = document.getElementById('station-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    } else if (tabParam === 'settings') {
+      openSettings();
+    } else if (actionParam === 'home') {
+      if (loadProfile() && profile.address) {
+        setTimeout(() => sendHome(), 500);
+      }
+    } else if (actionParam === 'current') {
+      setTimeout(() => sendCurrent(), 500);
+    }
+  </script>
+</body>
+</html>
