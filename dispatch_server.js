@@ -13,6 +13,15 @@ const FB_URL = 'https://orange-taxi-iizuka-default-rtdb.asia-southeast1.firebase
 const client = new line.Client(config);
 const app    = express();
 
+// CORS（Netlifyからのリクエストを許可）
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 // ヘルスチェック
 app.get('/', (req, res) => res.send('オレンジタクシー配車サーバー稼働中🚖'));
 
@@ -30,11 +39,9 @@ async function handleEvent(event) {
   const text   = event.message.text.trim();
   const source = event.source;
 
-  // お客様からのメッセージ（個人チャット）
   if (source.type === 'user') {
     const userId    = source.userId;
 
-    // 配車に関係ないメッセージは無視
     const ignoreList = [
       '運転手を評価したいです',
       'クーポンを使いたいです',
@@ -48,11 +55,9 @@ async function handleEvent(event) {
     ];
     if (ignoreList.includes(text)) return;
 
-    // 新飯塚駅・鯰田駅の予約は配車処理しない（会社が手動で対応）
     if (text.includes('新飯塚駅') && text.includes('到着します')) return;
     if (text.includes('鯰田駅') && text.includes('到着します')) return;
 
-    // ドライバー登録
     if (text === 'ドライバー登録') {
       await fetch(`${FB_URL}/driverLineIds/${userId}.json`, {
         method:  'PUT',
@@ -69,29 +74,22 @@ async function handleEvent(event) {
     const requestId = Date.now().toString();
     const timeStr   = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-    // お客様プロフィール取得
     let customerName  = '';
     let customerPhone = '';
     let pickup        = '';
 
-    // メッセージから情報を抽出
     const lines = text.split('\n');
     let navUrl = '';
     lines.forEach(l => {
-      // 電話番号（】を除去）
       if (l.includes('TEL：')) {
         customerPhone = (l.split('TEL：')[1] || '').replace(/】.*/, '').trim();
       }
-      // 名前
       if (l.includes('】')) {
         customerName = l.split('【')[1]?.split('】')[0]?.split('（')[0]?.trim() || '';
       }
-      // 現在地
       if (l.includes('今いる場所')) {
         pickup = '現在地（GPS）';
-      }
-      // 自宅・施設からの乗車（施設名＋住所を抽出）
-      else if (l.includes('に迎え') || l.includes('から乗り') || l.includes('到着')) {
+      } else if (l.includes('に迎え') || l.includes('から乗り') || l.includes('到着')) {
         const m = l.match(/^(.+?)（([^）]+)）/);
         if (m && m[2] !== '住所未登録') {
           const facilityName = m[1].trim();
@@ -101,7 +99,6 @@ async function handleEvent(event) {
           pickup = l.replace(/📍.*$/, '').trim();
         }
       }
-      // ナビURL（現在地GPS含む）
       if (l.includes('📍ナビ：') || l.includes('📍現在地：')) {
         const url = l.replace('📍ナビ：', '').replace('📍現在地：', '').trim();
         if (url.includes('maps?q=')) {
@@ -112,7 +109,6 @@ async function handleEvent(event) {
     });
     if (!pickup) pickup = lines[1] || lines[0] || text;
 
-    // Firebaseにリクエストを書き込む
     await fetch(`${FB_URL}/requests/${requestId}.json`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -130,7 +126,6 @@ async function handleEvent(event) {
       }),
     });
 
-    // 登録済みドライバー全員にLINE通知
     const driversSnap = await fetch(`${FB_URL}/driverLineIds.json`).then(r => r.json());
     if (driversSnap) {
       for (const driverId of Object.keys(driversSnap)) {
@@ -149,9 +144,6 @@ async function handleEvent(event) {
       }
     }
 
-    // 一次返信なし（乗務員確定後に通知）
-
-    // 30秒後にタイムアウトチェック
     setTimeout(async () => {
       try {
         const checkSnap = await fetch(`${FB_URL}/requests/${requestId}.json`).then(r => r.json());
