@@ -43,6 +43,9 @@ async function handleEvent(event) {
     ];
     if (ignoreList.includes(text)) return;
 
+    if (text.includes('新飯塚駅') && text.includes('到着します')) return;
+    if (text.includes('鯰田駅') && text.includes('到着します')) return;
+
     if (text === 'ドライバー登録') {
       await fetch(`${FB_URL}/driverLineIds/${userId}.json`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
