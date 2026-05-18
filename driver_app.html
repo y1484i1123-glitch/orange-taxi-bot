@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>乗務員アプリ　オレンジタクシー</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      background: #1a1a2e;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ヘッダー */
+    header {
+      background: linear-gradient(135deg, #FF8C00, #FFA500);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p  { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+
+    /* ON/OFFトグル */
+    .toggle-wrap { display: flex; align-items: center; gap: 10px; }
+    .toggle-label { font-size: 13px; font-weight: 700; }
+    .toggle {
+      position: relative;
+      width: 56px;
+      height: 30px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.3);
+      border-radius: 30px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      left: 3px;
+      top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background: #4CAF50; }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(26px); }
+
+    /* メインエリア */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+    }
+
+    /* 待機画面 */
+    #screen-standby {
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+    .standby-icon { font-size: 80px; margin-bottom: 20px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+    .standby-text { font-size: 22px; font-weight: 700; color: #aaa; margin-bottom: 8px; }
+    .standby-sub  { font-size: 14px; color: #666; }
+
+    /* オフライン画面 */
+    #screen-offline {
+      text-align: center;
+      display: none;
+    }
+    .offline-icon { font-size: 80px; margin-bottom: 20px; opacity: 0.4; }
+    .offline-text { font-size: 22px; font-weight: 700; color: #666; margin-bottom: 8px; }
+    .offline-sub  { font-size: 14px; color: #444; }
+
+    /* 配車リクエスト画面 */
+    #screen-request {
+      width: 100%;
+      max-width: 400px;
+      display: none;
+      animation: slideUp 0.4s ease;
+    }
+    @keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+    @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+
+    .request-card {
+      background: #16213e;
+      border-radius: 20px;
+      padding: 24px 20px;
+      border: 2px solid #FF8C00;
+      box-shadow: 0 0 30px rgba(255,140,0,0.3);
+      margin-bottom: 16px;
+    }
+    .request-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .request-title { font-size: 20px; font-weight: 700; color: #FF8C00; }
+
+    /* カウントダウン */
+    .countdown-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .countdown-num {
+      font-size: 28px;
+      font-weight: 900;
+      color: #FF8C00;
+      min-width: 40px;
+      text-align: center;
+    }
+    .countdown-num.urgent { color: #ff4444; animation: blink 0.5s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .countdown-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .countdown-bar {
+      height: 100%;
+      background: #FF8C00;
+      border-radius: 3px;
+      transition: width 1s linear, background 1s;
+    }
+
+    .request-info {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .request-info p {
+      font-size: 15px;
+      color: #ccc;
+      line-height: 1.7;
+    }
+
+    /* OKボタン */
+    .btn-ok {
+      width: 100%;
+      padding: 20px;
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 22px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 20px rgba(76,175,80,0.4);
+      letter-spacing: 0.05em;
+    }
+    .btn-ok:active { filter: brightness(0.9); transform: scale(0.98); }
+
+    .btn-cancel {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255,255,255,0.08);
+      color: #aaa;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-cancel:active { filter: brightness(0.9); }
+
+    /* 確定後画面 */
+    #screen-confirmed {
+      width: 100%;
+      max-width: 400px;
+      display: none;
+      animation: slideUp 0.4s ease;
+    }
+    .confirmed-badge {
+      text-align: center;
+      font-size: 60px;
+      margin-bottom: 12px;
+    }
+    .confirmed-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 900;
+      color: #4CAF50;
+      margin-bottom: 20px;
+    }
+    .customer-card {
+      background: #16213e;
+      border-radius: 20px;
+      padding: 20px;
+      border: 2px solid #4CAF50;
+      margin-bottom: 16px;
+    }
+    .customer-card h3 {
+      font-size: 14px;
+      color: #4CAF50;
+      font-weight: 700;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(76,175,80,0.3);
+      padding-bottom: 8px;
+    }
+    .customer-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .customer-row-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+    .customer-row-text { font-size: 15px; color: #ddd; line-height: 1.5; }
+    .customer-row-text strong { color: white; font-size: 17px; }
+
+    .btn-navi {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #1565C0, #1976D2);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 19px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 20px rgba(21,101,192,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn-navi:active { filter: brightness(0.9); }
+
+    .btn-call {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .btn-done {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255,255,255,0.07);
+      color: #aaa;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* トースト */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(50,50,50,0.95);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: transform 0.3s, opacity 0.3s;
+      opacity: 0;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ステータスバー */
+    .status-bar {
+      background: rgba(255,255,255,0.05);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #666;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4CAF50;
+      display: inline-block;
+      margin-right: 6px;
+      animation: blink2 1.5s infinite;
+    }
+    .status-dot.offline { background: #666; animation: none; }
+    @keyframes blink2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div>
+      <h1>🚖 オレンジタクシー</h1>
+      <p>乗務員アプリ</p>
+    </div>
+    <div class="toggle-wrap">
+      <span class="toggle-label" id="toggle-text">出勤</span>
+      <label class="toggle">
+        <input type="checkbox" id="duty-toggle" checked onchange="toggleDuty()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </header>
+
+  <!-- ステータスバー -->
+  <div class="status-bar">
+    <span><span class="status-dot" id="status-dot"></span><span id="status-text">配車待機中</span></span>
+    <span id="driver-name-display">氏名未設定</span>
+  </div>
+
+  <!-- メイン -->
+  <main>
+
+    <!-- 待機中 -->
+    <div id="screen-standby">
+      <div class="standby-icon">🚖</div>
+      <div class="standby-text">配車待機中</div>
+      <div class="standby-sub">リクエストが入ると通知されます</div>
+    </div>
+
+    <!-- オフライン -->
+    <div id="screen-offline">
+      <div class="offline-icon">💤</div>
+      <div class="offline-text">休憩中</div>
+      <div class="offline-sub">出勤ボタンを押すと待機を開始します</div>
+    </div>
+
+    <!-- 配車リクエスト -->
+    <div id="screen-request">
+      <div class="request-card">
+        <div class="request-header">
+          <span class="request-title">🚖 配車リクエスト！</span>
+          <div class="countdown-wrap">
+            <span class="countdown-num" id="countdown">15</span>
+            <span style="font-size:12px;color:#aaa;">秒</span>
+          </div>
+        </div>
+        <div class="countdown-bar-wrap">
+          <div class="countdown-bar" id="countdown-bar"></div>
+        </div>
+        <div class="request-info">
+          <p id="request-preview">お客様からのご依頼があります<br>OKを押すと詳細が表示されます</p>
+        </div>
+        <button class="btn-ok" onclick="acceptRequest()">✅ OK　引き受ける</button>
+        <button class="btn-cancel" onclick="declineRequest()">❌ キャンセル</button>
+      </div>
+    </div>
+
+    <!-- 確定後 -->
+    <div id="screen-confirmed">
+      <div class="confirmed-badge">✅</div>
+      <div class="confirmed-title">受付しました！</div>
+
+      <div class="customer-card">
+        <h3>📋 お客様情報</h3>
+        <div class="customer-row">
+          <span class="customer-row-icon">👤</span>
+          <span class="customer-row-text"><strong id="c-name">―</strong></span>
+        </div>
+        <div class="customer-row">
+          <span class="customer-row-icon">📞</span>
+          <span class="customer-row-text" id="c-phone">―</span>
+        </div>
+        <div class="customer-row">
+          <span class="customer-row-icon">📍</span>
+          <span class="customer-row-text" id="c-location">―</span>
+        </div>
+      </div>
+
+      <button class="btn-navi" id="btn-navi" onclick="openNavi()">
+        🗺 ナビ開始
+      </button>
+      <a class="btn-call" id="btn-call" href="#">
+        📞 お客様に電話する
+      </a>
+      <button class="btn-done" onclick="completeRide()">
+        乗車完了・次の待機へ
+      </button>
+    </div>
+
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getDatabase, ref, onValue, set, remove, push, get }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+    // =============================================
+    // Firebase設定（後で差し替え）
+    // =============================================
+    const firebaseConfig = {
+      apiKey:            "AIzaSyBA9vcnjdtPiMGL4AVVlqCR_jF5PJCN2dw",
+      authDomain:        "orange-taxi-iizuka.firebaseapp.com",
+      databaseURL:       "https://orange-taxi-iizuka-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId:         "orange-taxi-iizuka",
+      storageBucket:     "orange-taxi-iizuka.firebasestorage.app",
+      messagingSenderId: "347718380376",
+      appId:             "1:347718380376:web:d5637c0498b0fcd6d0132d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // =============================================
+    // 乗務員名（初回だけ入力）
+    // =============================================
+    let driverName = localStorage.getItem('driverName');
+    if (!driverName) {
+      driverName = prompt('乗務員のお名前を入力してください（例：山田太郎）');
+      if (driverName) localStorage.setItem('driverName', driverName);
+    }
+    document.getElementById('driver-name-display').textContent = driverName || '名前未設定';
+
+    // =============================================
+    // 状態管理
+    // =============================================
+    let isDuty         = true;
+    let currentRequest = null;
+    let countdownTimer = null;
+    let countdownSec   = 15;
+    const TOTAL_SEC    = 15;
+
+    // =============================================
+    // 出勤/退勤切り替え
+    // =============================================
+    window.toggleDuty = function() {
+      isDuty = document.getElementById('duty-toggle').checked;
+      document.getElementById('toggle-text').textContent = isDuty ? '出勤' : '休憩';
+      document.getElementById('status-dot').className    = 'status-dot' + (isDuty ? '' : ' offline');
+      document.getElementById('status-text').textContent = isDuty ? '配車待機中' : '休憩中';
+
+      if (isDuty) {
+        showScreen('standby');
+        // 出勤中ドライバーとして登録
+        set(ref(db, `drivers/${driverName}`), { name: driverName, onDuty: true, at: Date.now() });
+      } else {
+        clearCountdown();
+        showScreen('offline');
+        // 退勤
+        remove(ref(db, `drivers/${driverName}`));
+      }
+    };
+
+    // 起動時に出勤登録
+    set(ref(db, `drivers/${driverName}`), { name: driverName, onDuty: true, at: Date.now() });
+
+    // =============================================
+    // Firebase: 配車リクエストを監視
+    // =============================================
+    const requestsRef = ref(db, 'requests');
+    onValue(requestsRef, (snapshot) => {
+      if (!isDuty) return;
+      const data = snapshot.val();
+      if (!data) {
+        // リクエストなし → 待機画面
+        if (!currentRequest) showScreen('standby');
+        return;
+      }
+
+      // 未割り当ての最新リクエストを取得
+      const pending = Object.entries(data)
+        .filter(([, r]) => !r.assigned)
+        .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+      if (pending.length > 0 && !currentRequest) {
+        const [id, req] = pending[0];
+        currentRequest = { id, ...req };
+        showRequestScreen(currentRequest);
+      } else if (pending.length === 0 && currentRequest) {
+        // 他の人が受付した
+        clearCountdown();
+        currentRequest = null;
+        showToast('この案件は他の乗務員が受付しました');
+        showScreen('standby');
+      }
+    });
+
+    // =============================================
+    // 配車リクエスト表示
+    // =============================================
+    function showRequestScreen(req) {
+      document.getElementById('request-preview').innerHTML =
+        'お客様からのご依頼があります<br><small style="color:#888">OKを押すと詳細が表示されます</small>';
+      showScreen('request');
+      startCountdown();
+
+      // 音で通知
+      try {
+        const ctx = new AudioContext();
+        [0, 0.2, 0.4].forEach(t => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = 880;
+          g.gain.setValueAtTime(0.3, ctx.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+          o.start(ctx.currentTime + t);
+          o.stop(ctx.currentTime + t + 0.15);
+        });
+      } catch(e) {}
+    }
+
+    // =============================================
+    // カウントダウン
+    // =============================================
+    function startCountdown() {
+      countdownSec = TOTAL_SEC;
+      updateCountdownUI();
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        countdownSec--;
+        updateCountdownUI();
+        if (countdownSec <= 0) {
+          clearCountdown();
+          currentRequest = null;
+          showToast('時間切れです。次のリクエストをお待ちください。');
+          showScreen('standby');
+        }
+      }, 1000);
+    }
+
+    function updateCountdownUI() {
+      const el  = document.getElementById('countdown');
+      const bar = document.getElementById('countdown-bar');
+      el.textContent = countdownSec;
+      el.className   = 'countdown-num' + (countdownSec <= 5 ? ' urgent' : '');
+      bar.style.width = (countdownSec / TOTAL_SEC * 100) + '%';
+      bar.style.background = countdownSec <= 5 ? '#ff4444' : '#FF8C00';
+    }
+
+    function clearCountdown() {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+
+    // =============================================
+    // OK（受付）
+    // =============================================
+    window.acceptRequest = function() {
+      if (!currentRequest) return;
+      clearCountdown();
+
+      // Firebase で「割り当て済み」にする
+      const reqRef = ref(db, `requests/${currentRequest.id}`);
+      get(reqRef).then(snap => {
+        const r = snap.val();
+        if (!r || r.assigned) {
+          showToast('すでに他の乗務員が受付しました');
+          currentRequest = null;
+          showScreen('standby');
+          return;
+        }
+        // 自分が確定
+        set(reqRef, { ...r, assigned: true, driver: driverName });
+
+        // サーバー経由でお客様にLINE通知
+        fetch('https://honest-eagerness-production.up.railway.app/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: currentRequest.id, driverName }),
+        }).catch(e => console.error('confirm error:', e));
+
+        // お客様情報を解析して表示
+        const msg = currentRequest.message || '';
+        document.getElementById('c-name').textContent     = currentRequest.customerName || '―';
+        document.getElementById('c-phone').textContent    = currentRequest.customerPhone || '―';
+        document.getElementById('c-location').textContent = currentRequest.pickup || msg.split('\n')[0] || '―';
+
+        // ナビボタンのURL設定
+        const addr = encodeURIComponent(currentRequest.pickup || currentRequest.address || '新飯塚駅');
+        document.getElementById('btn-navi').dataset.addr = currentRequest.pickup || currentRequest.address || '';
+
+        // 電話ボタン
+        const tel = (currentRequest.customerPhone || '').replace(/[^\d]/g,'');
+        const callEl = document.getElementById('btn-call');
+        if (tel) {
+          callEl.href = `tel:${tel}`;
+          callEl.style.display = 'flex';
+        } else {
+          callEl.style.display = 'none';
+        }
+
+        showScreen('confirmed');
+        showToast('受付しました！ナビを開いてください');
+      });
+    };
+
+    // =============================================
+    // ナビ起動
+    // =============================================
+    window.openNavi = function() {
+      const addr = document.getElementById('btn-navi').dataset.addr;
+      if (addr) {
+        // Googleマップのナビを即起動
+        window.location.href = `https://maps.google.com/maps?daddr=${encodeURIComponent(addr)}&dirflg=d`;
+      } else {
+        showToast('ナビ先が設定されていません');
+      }
+    };
+
+    // =============================================
+    // キャンセル
+    // =============================================
+    window.declineRequest = function() {
+      clearCountdown();
+      currentRequest = null;
+      showScreen('standby');
+      showToast('キャンセルしました');
+    };
+
+    // =============================================
+    // 乗車完了
+    // =============================================
+    window.completeRide = function() {
+      currentRequest = null;
+      showScreen('standby');
+      showToast('お疲れさまでした！次の待機を開始します');
+    };
+
+    // =============================================
+    // 画面切り替え
+    // =============================================
+    function showScreen(name) {
+      ['standby','offline','request','confirmed'].forEach(s => {
+        document.getElementById('screen-' + s).style.display = 'none';
+      });
+      document.getElementById('screen-' + name).style.display = 'block';
+    }
+
+    // =============================================
+    // トースト
+    // =============================================
+    let toastTimer;
+    window.showToast = function(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+    };
+  </script>
+</body>
+</html>

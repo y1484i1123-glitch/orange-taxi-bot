@@ -79,6 +79,23 @@ async function handleEvent(event) {
         `※お急ぎの場合はお電話ください\n` +
         `📞 0948-22-0023`,
     });
+
+    // 15秒後にタイムアウトチェック
+    setTimeout(async () => {
+      try {
+        const checkSnap = await fetch(`${FB_URL}/requests/${requestId}.json`).then(r => r.json());
+        if (checkSnap && !checkSnap.assigned) {
+          await client.pushMessage(userId, {
+            type: 'text',
+            text:
+              `⚠️ ご不便をおかけして大変申し訳ありません。\n` +
+              `ただいま乗務員がすぐに対応できない状況です。\n\n` +
+              `お電話にて配車依頼をしてください。\n` +
+              `📞 0948-22-0023`,
+          });
+        }
+      } catch(e) { console.error('timeout check error:', e.message); }
+    }, 15000);
   }
 }
 
