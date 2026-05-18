@@ -33,6 +33,21 @@ async function handleEvent(event) {
   // お客様からのメッセージ（個人チャット）
   if (source.type === 'user') {
     const userId    = source.userId;
+
+    // ドライバー登録
+    if (text === 'ドライバー登録') {
+      await fetch(`${FB_URL}/driverLineIds/${userId}.json`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, registeredAt: Date.now() }),
+      });
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '✅ ドライバーとして登録しました！\n配車リクエストが来たらLINEでお知らせします。',
+      });
+      return;
+    }
+
     const requestId = Date.now().toString();
     const timeStr   = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
@@ -66,6 +81,25 @@ async function handleEvent(event) {
         assigned:      false,
       }),
     });
+
+    // 登録済みドライバー全員にLINE通知
+    const driversSnap = await fetch(`${FB_URL}/driverLineIds.json`).then(r => r.json());
+    if (driversSnap) {
+      for (const driverId of Object.keys(driversSnap)) {
+        await client.pushMessage(driverId, {
+          type: 'text',
+          text:
+            `🚖 配車リクエストが来ました！\n` +
+            `\n` +
+            `📍 乗車場所：${pickup}\n` +
+            `👤 お客様：${customerName || '（名前未登録）'}\n` +
+            (customerPhone ? `📞 電話：${customerPhone}\n` : '') +
+            `🕐 時刻：${timeStr}\n` +
+            `\n` +
+            `乗務員アプリで確認・受付してください。`,
+        }).catch(e => console.error('driver push error:', e.message));
+      }
+    }
 
     // お客様に受付確認
     await client.replyMessage(event.replyToken, {
