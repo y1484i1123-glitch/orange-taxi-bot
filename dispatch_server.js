@@ -30,9 +30,8 @@ async function handleEvent(event) {
   const text   = event.message.text.trim();
   const source = event.source;
 
-  // お客様からのメッセージ（個人チャット）
   if (source.type === 'user') {
-    const userId    = source.userId;
+    const userId = source.userId;
 
     // ドライバー登録
     if (text === 'ドライバー登録') {
@@ -51,17 +50,37 @@ async function handleEvent(event) {
     const requestId = Date.now().toString();
     const timeStr   = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-    // お客様プロフィール取得
     let customerName  = '';
     let customerPhone = '';
     let pickup        = '';
+    let navUrl        = '';
 
     // メッセージから情報を抽出
     const lines = text.split('\n');
     lines.forEach(l => {
-      if (l.includes('TEL：')) customerPhone = l.split('TEL：')[1];
-      if (l.includes('】'))    customerName  = l.split('【')[1]?.split('】')[0]?.split('（')[0] || '';
-      if (l.includes('に迎え') || l.includes('から乗り') || l.includes('到着')) pickup = l;
+      if (l.includes('TEL：')) {
+        customerPhone = (l.split('TEL：')[1] || '').replace(/】.*/, '').trim();
+      }
+      if (l.includes('】')) {
+        customerName = l.split('【')[1]?.split('】')[0]?.split('（')[0]?.trim() || '';
+      }
+      if (l.includes('今いる場所')) {
+        pickup = '現在地（GPS）';
+      } else if (l.includes('に迎え') || l.includes('から乗り') || l.includes('到着')) {
+        const m = l.match(/（([^）]+)）/);
+        if (m && m[1] !== '住所未登録') {
+          pickup = m[1];
+        } else {
+          pickup = l;
+        }
+      }
+      if (l.includes('📍ナビ：') || l.includes('📍現在地：')) {
+        const url = l.replace('📍ナビ：', '').replace('📍現在地：', '').trim();
+        if (url.includes('maps?q=')) {
+          const dest = url.split('maps?q=')[1];
+          navUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + dest + '&travelmode=driving';
+        }
+      }
     });
     if (!pickup) pickup = lines[1] || lines[0] || text;
 
@@ -76,6 +95,7 @@ async function handleEvent(event) {
         customerName:  customerName  || '（名前未登録）',
         customerPhone: customerPhone || '',
         pickup:        pickup,
+        navUrl:        navUrl || '',
         timestamp:     Date.now(),
         time:          timeStr,
         assigned:      false,
@@ -89,13 +109,11 @@ async function handleEvent(event) {
         await client.pushMessage(driverId, {
           type: 'text',
           text:
-            `🚖 配車リクエストが来ました！\n` +
-            `\n` +
+            `🚖 配車リクエストが来ました！\n\n` +
             `📍 乗車場所：${pickup}\n` +
             `👤 お客様：${customerName || '（名前未登録）'}\n` +
             (customerPhone ? `📞 電話：${customerPhone}\n` : '') +
-            `🕐 時刻：${timeStr}\n` +
-            `\n` +
+            `🕐 時刻：${timeStr}\n\n` +
             `乗務員アプリで確認・受付してください。`,
         }).catch(e => console.error('driver push error:', e.message));
       }
@@ -106,15 +124,13 @@ async function handleEvent(event) {
       type: 'text',
       text:
         `📨 リクエストを受け付けました！\n` +
-        `乗務員が確認次第ご連絡します。\n` +
-        `\n` +
-        `しばらくお待ちください 🚖\n` +
-        `\n` +
+        `乗務員が確認次第ご連絡します。\n\n` +
+        `しばらくお待ちください 🚖\n\n` +
         `※お急ぎの場合はお電話ください\n` +
         `📞 0948-22-0023`,
     });
 
-    // 15秒後にタイムアウトチェック
+    // 30秒後にタイムアウトチェック
     setTimeout(async () => {
       try {
         const checkSnap = await fetch(`${FB_URL}/requests/${requestId}.json`).then(r => r.json());
@@ -129,36 +145,31 @@ async function handleEvent(event) {
           });
         }
       } catch(e) { console.error('timeout check error:', e.message); }
-    }, 15000);
+    }, 30000);
   }
 }
 
-// 乗務員がOKを押した後の確定処理（ドライバーアプリから呼ばれる）
+// 乗務員がOKを押した後の確定処理
 app.post('/confirm', express.json(), async (req, res) => {
   const { requestId, driverName } = req.body;
 
-  // Firebaseからリクエスト取得
   const snap = await fetch(`${FB_URL}/requests/${requestId}.json`).then(r => r.json());
   if (!snap || snap.assigned) {
     return res.json({ ok: false, message: 'すでに受付済みです' });
   }
 
-  // 割り当て済みに更新
   await fetch(`${FB_URL}/requests/${requestId}.json`, {
     method:  'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ assigned: true, driver: driverName }),
   });
 
-  // お客様にLINEで確定通知
   await client.pushMessage(snap.userId, {
     type: 'text',
     text:
-      `✅ 乗務員が決まりました！\n` +
-      `\n` +
+      `✅ 乗務員が決まりました！\n\n` +
       `👤 担当：${driverName}\n` +
-      `まもなく向かいます 🚖\n` +
-      `\n` +
+      `まもなく向かいます 🚖\n\n` +
       `※ご不明な点はお電話ください\n` +
       `📞 0948-22-0023`,
   });
