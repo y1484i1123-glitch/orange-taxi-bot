@@ -1,3 +1,4 @@
+require('dotenv').config();
 const line    = require('@line/bot-sdk');
 const express = require('express');
 const fetch   = require('node-fetch');
@@ -7,11 +8,10 @@ const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 };
 
-// Firebase Realtime Database のURL
-const FB_URL = 'https://orange-taxi-iizuka-default-rtdb.asia-southeast1.firebasedatabase.app';
-
-const client = new line.Client(config);
-const app    = express();
+if (!config.channelAccessToken || !config.channelSecret) {
+  console.error('❌ LINE_CHANNEL_ACCESS_TOKEN / LINE_CHANNEL_SECRET が環境変数に設定されていません');
+  process.exit(1);
+}
 
 // CORS（Netlifyからのリクエストを許可）
 app.use((req, res, next) => {
