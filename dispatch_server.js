@@ -13,6 +13,12 @@ if (!config.channelAccessToken || !config.channelSecret) {
   process.exit(1);
 }
 
+// Firebase Realtime Database のURL
+const FB_URL = 'https://orange-taxi-iizuka-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+const client = new line.Client(config);
+const app    = express();
+
 // CORS（Netlifyからのリクエストを許可）
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
